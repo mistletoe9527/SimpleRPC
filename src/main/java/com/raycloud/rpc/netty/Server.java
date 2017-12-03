@@ -2,6 +2,7 @@ package com.raycloud.rpc.netty;
 
 import com.raycloud.rpc.message.MessageRequest;
 import com.raycloud.rpc.message.MessageResponse;
+import com.raycloud.rpc.registry.ServiceRegistry;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -37,6 +38,8 @@ public class Server {
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
 
             ChannelFuture future = bootstrap.bind("127.0.0.1", 8888).sync();
+            ServiceRegistry serviceRegistry=new ServiceRegistry("st01:2181");
+            serviceRegistry.register("127.0.0.1:8888");
             future.channel().closeFuture().sync();
         } finally {
             workerGroup.shutdownGracefully();

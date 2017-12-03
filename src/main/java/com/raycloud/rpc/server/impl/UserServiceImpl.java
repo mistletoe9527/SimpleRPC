@@ -2,11 +2,13 @@ package com.raycloud.rpc.server.impl;
 
 import com.raycloud.rpc.server.UserService;
 import com.raycloud.rpc.server.ano.RpcService;
+import org.springframework.stereotype.Component;
 
 /**
  * Created by styb on 2017/12/2.
  */
 @RpcService(UserService.class)
+@Component
 public class UserServiceImpl implements UserService{
 
     @Override

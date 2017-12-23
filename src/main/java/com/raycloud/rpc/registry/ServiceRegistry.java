@@ -4,8 +4,11 @@ package com.raycloud.rpc.registry;
  * register service
  * Created by styb on 2017/12/3.
  */
-import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
+
+import com.raycloud.rpc.client.Connects;
+import com.raycloud.rpc.client.URL;
+import com.raycloud.rpc.constant.Constant;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.WatchedEvent;
@@ -21,26 +24,24 @@ public class ServiceRegistry {
 
     private CountDownLatch latch = new CountDownLatch(1);
 
-    private String registryAddress;
 
-    public ServiceRegistry(String registryAddress) {
-        this.registryAddress = registryAddress;
+    public ServiceRegistry() {
     }
 
-    public void register(String data) {
-        if (data != null) {
-            ZooKeeper zk = connectServer();
+    public void register(URL url) {
+        if (url!=null && url.getClassName() != null) {
+            ZooKeeper zk = connectServer(url);
             if (zk != null) {
                 AddRootNode(zk); // Add root node if not exist
-                createNode(zk, data);
+                createNode(zk, url);
             }
         }
     }
 
-    private ZooKeeper connectServer() {
+    private ZooKeeper connectServer(URL url) {
         ZooKeeper zk = null;
         try {
-            zk = new ZooKeeper(registryAddress, 5000, new Watcher() {
+            zk = new ZooKeeper(url.getRegistryURL(), 5000, new Watcher() {
                 @Override
                 public void process(WatchedEvent event) {
                     if (event.getState() == Event.KeeperState.SyncConnected) {
@@ -57,7 +58,7 @@ public class ServiceRegistry {
 
     private void AddRootNode(ZooKeeper zk){
         try {
-            Stat s = zk.exists("/registry", false);
+            Stat s = zk.exists(Constant.REGISTRY_PATH, false);
             if (s == null) {
                 zk.create("/registry", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             }
@@ -66,11 +67,20 @@ public class ServiceRegistry {
         }
     }
 
-    private void createNode(ZooKeeper zk, String data) {
+    private void createNode(ZooKeeper zk, URL url) {
         try {
-            byte[] bytes = data.getBytes();
-            String path = zk.create("/registry/data", bytes, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
-            logger.debug("create zookeeper node ({} => {})", path, data);
+            Stat s=zk.exists(Constant.REGISTRY_PATH+"/"+url.getClassName(),false);
+            if(s == null){
+                zk.create(Constant.REGISTRY_PATH+"/"+url.getClassName(), new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                zk.create(Constant.REGISTRY_PATH+"/"+url.getClassName()+Constant.PROVIDE_PATH, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+                zk.create(Constant.REGISTRY_PATH+"/"+url.getClassName()+Constant.CONSUME_PATH, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            }
+            Stat ss=zk.exists(Constant.REGISTRY_PATH+"/"+url.getClassName()+Constant.PROVIDE_PATH+"/version:"+url.getVersion()+":"+url.getServer()+":"+url.getPort(),false);
+            if(ss==null)
+                zk.create(Constant.REGISTRY_PATH+"/"+url.getClassName()+Constant.PROVIDE_PATH+"/version:"+url.getVersion()+":"+url.getServer()+":"+url.getPort(), new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+
+//            String path = zk.create("/registry/data", bytes, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL);
+//            logger.debug("create zookeeper node ({} => {})", path, data);
         } catch (Exception e){
             logger.error("error msg = "+e.getMessage(), e);
         }
